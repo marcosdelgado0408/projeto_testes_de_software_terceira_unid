@@ -13,6 +13,8 @@ import ecommerce.dto.EstoqueBaixaDTO;
 import ecommerce.dto.PagamentoDTO;
 import ecommerce.entity.CarrinhoDeCompras;
 import ecommerce.entity.Cliente;
+import ecommerce.entity.ItemCompra;
+import ecommerce.entity.TipoCliente;
 import ecommerce.external.IEstoqueExternal;
 import ecommerce.external.IPagamentoExternal;
 import jakarta.transaction.Transactional;
@@ -72,7 +74,48 @@ public class CompraService {
 	}
 
 	public BigDecimal calcularCustoTotal(CarrinhoDeCompras carrinho) {
-		// To-Do
-		return BigDecimal.ZERO;
+		BigDecimal totalProdutos = BigDecimal.ZERO;
+	    int pesoTotal = 0;
+
+	    // Calcular o custo total dos produtos e o peso total
+	    for (ItemCompra item : carrinho.getItens()) {
+	        BigDecimal precoProduto = item.getProduto().getPreco();
+	        Long quantidade = item.getQuantidade();
+	        totalProdutos = totalProdutos.add(precoProduto.multiply(BigDecimal.valueOf(quantidade)));
+	        pesoTotal += item.getProduto().getPeso() * quantidade;
+	    }
+
+	    // Calcular o custo do frete
+	    BigDecimal custoFrete = calcularFrete(pesoTotal, carrinho.getCliente().getTipo());
+
+	    // Aplicar descontos se necessário
+	    if (totalProdutos.compareTo(BigDecimal.valueOf(1000)) > 0) {
+	        totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.8)); // 20% de desconto
+	    } else if (totalProdutos.compareTo(BigDecimal.valueOf(500)) > 0) {
+	        totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.9)); // 10% de desconto
+	    }
+
+	    return totalProdutos.add(custoFrete);
+	}
+	
+	private BigDecimal calcularFrete(int pesoTotal, TipoCliente tipoCliente) {
+	    BigDecimal custoFrete = BigDecimal.ZERO;
+
+	    if (pesoTotal > 50) {
+	        custoFrete = BigDecimal.valueOf(7).multiply(BigDecimal.valueOf(pesoTotal));
+	    } else if (pesoTotal >= 10) {
+	        custoFrete = BigDecimal.valueOf(4).multiply(BigDecimal.valueOf(pesoTotal));
+	    } else if (pesoTotal >= 5) {
+	        custoFrete = BigDecimal.valueOf(2).multiply(BigDecimal.valueOf(pesoTotal));
+	    }
+
+	    // Aplicar isenção de frete
+	    if (tipoCliente == TipoCliente.OURO) {
+	        return BigDecimal.ZERO;
+	    } else if (tipoCliente == TipoCliente.PRATA) {
+	        return custoFrete.multiply(BigDecimal.valueOf(0.5));
+	    }
+
+	    return custoFrete;
 	}
 }
