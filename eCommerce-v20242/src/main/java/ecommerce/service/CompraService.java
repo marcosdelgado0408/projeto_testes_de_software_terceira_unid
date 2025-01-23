@@ -40,64 +40,85 @@ public class CompraService {
 
 	@Transactional
 	public CompraDTO finalizarCompra(Long carrinhoId, Long clienteId) {
+		// Buscar cliente pelo ID
 		Cliente cliente = clienteService.buscarPorId(clienteId);
+
+		// Buscar carrinho pelo ID e cliente
 		CarrinhoDeCompras carrinho = carrinhoService.buscarPorCarrinhoIdEClienteId(carrinhoId, cliente);
 
-		List<Long> produtosIds = carrinho.getItens().stream().map(i -> i.getProduto().getId())
+		// Validar se o carrinho existe, possui itens e está associado a um cliente
+		if (carrinho == null || carrinho.getItens() == null || carrinho.getItens().isEmpty()) {
+			throw new IllegalStateException("Carrinho vazio ou não encontrado.");
+		}
+		if (carrinho.getCliente() == null) {
+			throw new IllegalStateException("Carrinho não está associado a um cliente válido.");
+		}
+
+		// Extrair IDs e quantidades dos produtos do carrinho
+		List<Long> produtosIds = carrinho.getItens().stream()
+				.map(i -> i.getProduto().getId())
 				.collect(Collectors.toList());
-		List<Long> produtosQtds = carrinho.getItens().stream().map(i -> i.getQuantidade()).collect(Collectors.toList());
+		List<Long> produtosQtds = carrinho.getItens().stream()
+				.map(i -> i.getQuantidade())
+				.collect(Collectors.toList());
 
+		// Verificar disponibilidade no estoque
 		DisponibilidadeDTO disponibilidade = estoqueExternal.verificarDisponibilidade(produtosIds, produtosQtds);
-
 		if (!disponibilidade.disponivel()) {
 			throw new IllegalStateException("Itens fora de estoque.");
 		}
 
+		// Calcular custo total do carrinho
 		BigDecimal custoTotal = calcularCustoTotal(carrinho);
 
+		// Autorizar pagamento
 		PagamentoDTO pagamento = pagamentoExternal.autorizarPagamento(cliente.getId(), custoTotal.doubleValue());
-
-		if (!pagamento.autorizado()) {
+		if (pagamento == null || !pagamento.autorizado()) {
 			throw new IllegalStateException("Pagamento não autorizado.");
 		}
 
+		// Dar baixa no estoque
 		EstoqueBaixaDTO baixaDTO = estoqueExternal.darBaixa(produtosIds, produtosQtds);
-
 		if (!baixaDTO.sucesso()) {
-			pagamentoExternal.cancelarPagamento(cliente.getId(), pagamento.transacaoId());
+			if (pagamento.transacaoId() != null) {
+				pagamentoExternal.cancelarPagamento(cliente.getId(), pagamento.transacaoId());
+			}
 			throw new IllegalStateException("Erro ao dar baixa no estoque.");
 		}
 
-		CompraDTO compraDTO = new CompraDTO(true, pagamento.transacaoId(), "Compra finalizada com sucesso.");
-
-		return compraDTO;
+		// Retornar DTO de sucesso
+		return new CompraDTO(true, pagamento.transacaoId(), "Compra finalizada com sucesso.");
 	}
+
+
 
 	public BigDecimal calcularCustoTotal(CarrinhoDeCompras carrinho) {
 		BigDecimal totalProdutos = BigDecimal.ZERO;
-	    int pesoTotal = 0;
+		int pesoTotal = 0;
 
-	    // Calcular o custo total dos produtos e o peso total
-	    for (ItemCompra item : carrinho.getItens()) {
-	        BigDecimal precoProduto = item.getProduto().getPreco();
-	        Long quantidade = item.getQuantidade();
-	        totalProdutos = totalProdutos.add(precoProduto.multiply(BigDecimal.valueOf(quantidade)));
-	        pesoTotal += item.getProduto().getPeso() * quantidade;
-	    }
+		// Calcular o custo total dos produtos e o peso total
+		for (ItemCompra item : carrinho.getItens()) {
+			BigDecimal precoProduto = item.getProduto().getPreco();
+			Long quantidade = item.getQuantidade();
+			totalProdutos = totalProdutos.add(precoProduto.multiply(BigDecimal.valueOf(quantidade)));
+			pesoTotal += item.getProduto().getPeso() * quantidade;
+		}
 
-	    // Calcular o custo do frete
-	    BigDecimal custoFrete = calcularFrete(pesoTotal, carrinho.getCliente().getTipo());
+		// Aplicar descontos ao total dos produtos
+		if (totalProdutos.compareTo(BigDecimal.valueOf(1000)) > 0) {
+			totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.8)); // 20% de desconto
+		} else if (totalProdutos.compareTo(BigDecimal.valueOf(500)) > 0) {
+			totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.9)); // 10% de desconto
+		}
 
-	    // Aplicar descontos se necessário
-	    if (totalProdutos.compareTo(BigDecimal.valueOf(1000)) > 0) {
-	        totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.8)); // 20% de desconto
-	    } else if (totalProdutos.compareTo(BigDecimal.valueOf(500)) > 0) {
-	        totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.9)); // 10% de desconto
-	    }
+		// Calcular o custo do frete
+		BigDecimal custoFrete = calcularFrete(pesoTotal, carrinho.getCliente().getTipo());
 
-	    return totalProdutos.add(custoFrete);
+		// Retornar o total final
+		return totalProdutos.add(custoFrete);
 	}
-	
+
+
 	private BigDecimal calcularFrete(int pesoTotal, TipoCliente tipoCliente) {
 	    BigDecimal custoFrete = BigDecimal.ZERO;
 
