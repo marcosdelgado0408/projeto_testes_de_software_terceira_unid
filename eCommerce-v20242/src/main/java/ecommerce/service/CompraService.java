@@ -64,7 +64,7 @@ public class CompraService {
 
 		// Verificar disponibilidade no estoque
 		DisponibilidadeDTO disponibilidade = estoqueExternal.verificarDisponibilidade(produtosIds, produtosQtds);
-		if (!disponibilidade.disponivel()) {
+		if (disponibilidade == null || !disponibilidade.disponivel()) {
 			throw new IllegalStateException("Itens fora de estoque.");
 		}
 
@@ -104,22 +104,26 @@ public class CompraService {
 			pesoTotal += item.getProduto().getPeso() * quantidade;
 		}
 
+
 		// Aplicar descontos ao total dos produtos
-		if (totalProdutos.compareTo(BigDecimal.valueOf(1000)) > 0) {
+		if (totalProdutos.compareTo(BigDecimal.valueOf(1000)) >= 0) { // Para 1000 ou mais
 			totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.8)); // 20% de desconto
-		} else if (totalProdutos.compareTo(BigDecimal.valueOf(500)) > 0) {
+		} else if (totalProdutos.compareTo(BigDecimal.valueOf(500)) >= 0) { // Para mais que 500 e menos que 1000
 			totalProdutos = totalProdutos.multiply(BigDecimal.valueOf(0.9)); // 10% de desconto
 		}
+
 
 		// Calcular o custo do frete
 		BigDecimal custoFrete = calcularFrete(pesoTotal, carrinho.getCliente().getTipo());
 
-		// Retornar o total final
+
+		// Retornar o total final (total de produtos + frete)
 		return totalProdutos.add(custoFrete);
 	}
 
 
-	private BigDecimal calcularFrete(int pesoTotal, TipoCliente tipoCliente) {
+
+	public BigDecimal calcularFrete(int pesoTotal, TipoCliente tipoCliente) {
 	    BigDecimal custoFrete = BigDecimal.ZERO;
 
 	    if (pesoTotal > 50) {
