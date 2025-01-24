@@ -126,7 +126,7 @@ public class CompraService {
 	        custoFrete = BigDecimal.valueOf(7).multiply(BigDecimal.valueOf(pesoTotal));
 	    } else if (pesoTotal >= 10) {
 	        custoFrete = BigDecimal.valueOf(4).multiply(BigDecimal.valueOf(pesoTotal));
-	    } else if (pesoTotal >= 5) {
+	    } else if (pesoTotal > 5) {
 	        custoFrete = BigDecimal.valueOf(2).multiply(BigDecimal.valueOf(pesoTotal));
 	    }
 
