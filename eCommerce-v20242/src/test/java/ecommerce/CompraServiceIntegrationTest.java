@@ -127,4 +127,28 @@ public class CompraServiceIntegrationTest {
 
         verify(pagamentoExternal, never()).cancelarPagamento(anyLong(), anyLong());
     }
+
+
+    @Test
+    public void testFinalizarCompra_EstoqueIndisponivel() {
+        Long clienteId = 2L;
+        Long carrinhoId = 2L;
+
+        Cliente cliente = new Cliente(clienteId, "Maria", "Endereço", null);
+        Produto produto = new Produto(1L, "Produto Teste", "Descrição", BigDecimal.valueOf(100), 500, TipoProduto.ELETRONICO);
+        ItemCompra item = new ItemCompra(1L, produto, 2L);
+        CarrinhoDeCompras carrinho = mock(CarrinhoDeCompras.class);
+
+        when(clienteService.buscarPorId(clienteId)).thenReturn(cliente);
+        when(carrinhoService.buscarPorCarrinhoIdEClienteId(carrinhoId, cliente)).thenReturn(carrinho);
+        when(carrinho.getItens()).thenReturn(List.of(item));
+
+        when(estoqueExternal.verificarDisponibilidade(anyList(), anyList()))
+                .thenReturn(new DisponibilidadeDTO(false, List.of("Produto Teste")));
+
+        assertThrows(IllegalStateException.class, () -> compraService.finalizarCompra(carrinhoId, clienteId));
+
+        verify(pagamentoExternal, never()).autorizarPagamento(anyLong(), anyDouble());
+    }
+
 }

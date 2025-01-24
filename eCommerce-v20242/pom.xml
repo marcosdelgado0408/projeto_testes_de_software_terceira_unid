@@ -105,10 +105,15 @@
 				<configuration>
 					<targetClasses>ecommerce.service*</targetClasses> <!-- Classes a serem testadas -->
 					<targetTests>ecommerce.*Test</targetTests> <!-- Testes a serem usados -->
-					<threads>4</threads>
+					<threads>4</threads> <!-- Número de threads paralelas -->
 					<outputFormats>
-						<param>HTML</param>
+						<param>HTML</param> <!-- Gera relatório HTML -->
 					</outputFormats>
+					<mutators>
+						<mutator>ALL</mutator> <!-- Usa todos os operadores mutantes -->
+					</mutators>
+					<timeoutFactor>1.5</timeoutFactor> <!-- Ajuste para testes mais lentos -->
+					<failWhenNoMutations>true</failWhenNoMutations> <!-- Fails se nenhuma mutação for gerada -->
 				</configuration>
 				<dependencies>
 					<dependency>
