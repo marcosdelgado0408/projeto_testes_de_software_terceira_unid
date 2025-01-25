@@ -30,6 +30,10 @@ Escolha "More Run/Debug" > "Run <Nome_do_Teste> with Coverage".
 
 Os resultados de cobertura serão exibidos diretamente na IDE.
 
+Ou execute na raiz do projeto:
+```
+mvn test
+```
 ## Cobertura de Mutantes com PIT
 
 Para realizar a cobertura de mutantes, foi utilizada a ferramenta PIT (Pitest). Caso queira utilizá-la:
